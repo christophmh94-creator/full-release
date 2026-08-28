@@ -94,11 +94,6 @@ full-release/
     └── release_template_preview.html   before/after of the BBCode layout
 ```
 
-> A screenshot of the populated web UI used to live in `previews/` too. It was
-> dropped rather than shipped stale: it still showed the pre-rename branding
-> throughout, and regenerating it needs a browser against a running instance.
-> Take a fresh one if you want it back.
-
 Only `requirements.txt`, `app/` and `web/` are copied into the Docker image —
 `branding/`, `previews/`, and `docs/` are reference material and don't affect
 the build.
@@ -110,12 +105,5 @@ black `#000000` + orange `#FF9900`, matching the BBCode template and the web UI.
 The header logo in the web UI is plain styled text (no vector artwork needed at
 runtime).
 
-The `branding/` assets are rendered with Pillow (DejaVu Sans Bold) rather than
-outlined to font-independent vector paths. The `.svg` files are thin wrappers
-around the same PNGs (a `<image>` element with the raster embedded as
-base64), not true vector paths - functionally valid SVGs, but they won't
-scale losslessly. Redoing these as real outlined vector art is a manual
-follow-up if that matters for your use case.
-
-For the Unraid container icon, point the template's `<Icon>` field at
-`full-release_icon_512.png` (host it somewhere reachable, e.g. a GitHub raw URL).
+The `.svg` files embed the same raster art rather than true vector paths, so
+they are functionally valid SVGs but won't scale losslessly.
