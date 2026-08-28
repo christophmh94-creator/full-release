@@ -74,11 +74,14 @@ public sealed class FullReleaseLinkExtension : CoveExtensionBase, IActionExtensi
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
-        // In the released build, ExtensionManager.RegisterExtensionEndpoints calls MapEndpoints
-        // without applying any authorization, and Cove listens on 0.0.0.0 - so a naively mapped
-        // endpoint is callable from the whole LAN. Check explicitly, in the handler.
-        // (RequiresPermissionAttribute does not help here: it is an MVC filter attribute and
-        // has no effect on minimal API endpoints.)
+        // Extension endpoints default to anonymous access for backward compatibility, and Cove
+        // listens on 0.0.0.0 - so an endpoint that declares nothing is callable from the whole
+        // LAN. Cove 1.3.x lets you declare intent on the endpoint itself (RequireCovePermission,
+        // RequireCoveEntityAccess, AllowWithoutCovePermission, AllowCoveAnonymous); this handler
+        // predates that and checks by hand instead, which is why Cove logs a warning about a
+        // missing policy at startup. Declaring it is the better way round; see the README.
+        // Note that RequiresPermissionAttribute is not the answer either way: it is an MVC
+        // filter attribute and has no effect on minimal API endpoints.
         endpoints.MapPost(ResolveEndpoint, async (HttpContext http) =>
         {
             var services = http.RequestServices;

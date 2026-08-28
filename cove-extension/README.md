@@ -41,12 +41,18 @@ extension's child container and you had to go through the repository
 interfaces in `Cove.Core/Interfaces/`. In 1.3.1 it resolves directly, which is
 what this extension does.
 
-**Authorize your own endpoints.** In the released build,
-`ExtensionManager.RegisterExtensionEndpoints` maps extension endpoints without
-applying any authorization policy, and Cove listens on `0.0.0.0`. A naively
-mapped endpoint is therefore callable by anything on the network. This
-extension checks `ICurrentPrincipalAccessor` and `IAuthorizationService`
-explicitly in the handler and returns 401/403 itself. `RequiresPermission` does
-not help: it is an MVC filter attribute and has no effect on minimal API
-endpoints. Cove logs a warning about the missing policy on startup, which is
-expected here rather than a sign something is wrong.
+**Authorize your own endpoints.** Extension endpoints default to anonymous
+access for backward compatibility, and Cove listens on `0.0.0.0`, so an
+endpoint that declares nothing is callable by anything on the network. Cove
+1.3.x lets you declare intent on the endpoint itself with
+`RequireCovePermission`, `RequireCoveEntityAccess`,
+`AllowWithoutCovePermission` or `AllowCoveAnonymous`, and warns at startup
+about endpoints that declare none.
+
+This extension predates that and instead checks `ICurrentPrincipalAccessor`
+and `IAuthorizationService` by hand in the handler, returning 401/403 itself.
+That works, and you can verify it with an unauthenticated `curl -X POST`
+against the endpoint, but declaring the requirement is the better way round.
+Moving it over is an open follow-up here. What does not work either way is
+`RequiresPermission`: it is an MVC filter attribute and minimal API endpoints
+ignore it.

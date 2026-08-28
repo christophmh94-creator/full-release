@@ -174,10 +174,13 @@ Check the Cove container logs after restart - a clean load looks like:
 [Cove.Plugins.ExtensionManager] Extension com.christophmh.full-release-link (Open in Full Release v1.0.0) initialized
 ```
 
-A warning about the endpoint having "no Cove authorization policy" is
-expected and harmless as long as the extension does its own auth check
-inside the handler (verify with an unauthenticated `curl -X POST` against the
-endpoint - it should come back `401`, not succeed).
+Cove will also warn that the endpoint was registered "without a Cove
+authorization policy". That is expected here: this extension enforces the
+permission by hand inside the handler instead of declaring it. Verify it with
+an unauthenticated `curl -X POST` against the endpoint, which should come back
+`401` rather than succeed. See
+[cove-extension/README.md](../cove-extension/README.md) for why declaring it
+with `RequireCovePermission` is the better way round.
 
 The base URL the extension points at is controlled by a `FULL_RELEASE_URL`
 environment variable on the Cove container. The fallback baked into the code
