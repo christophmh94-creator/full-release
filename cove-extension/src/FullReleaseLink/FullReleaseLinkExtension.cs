@@ -75,13 +75,18 @@ public sealed class FullReleaseLinkExtension : CoveExtensionBase, IActionExtensi
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
         // Extension endpoints default to anonymous access for backward compatibility, and Cove
-        // listens on 0.0.0.0 - so an endpoint that declares nothing is callable from the whole
-        // LAN. Cove 1.3.x lets you declare intent on the endpoint itself (RequireCovePermission,
-        // RequireCoveEntityAccess, AllowWithoutCovePermission, AllowCoveAnonymous); this handler
-        // predates that and checks by hand instead, which is why Cove logs a warning about a
-        // missing policy at startup. Declaring it is the better way round; see the README.
-        // Note that RequiresPermissionAttribute is not the answer either way: it is an MVC
-        // filter attribute and has no effect on minimal API endpoints.
+        // listens on 0.0.0.0, so an endpoint that declares nothing is callable from the whole
+        // LAN. Cove.Sdk.EndpointAuthorizationExtensions is the way to declare intent
+        // (RequireCovePermission / RequireCoveEntityAccess / AllowWithoutCovePermission /
+        // AllowCoveAnonymous); the requirement is attached below the handler. Requires Cove
+        // 1.3.x, which extension.json already sets as the minimum.
+        //
+        // The in-handler principal and permission checks are kept as a second line of defence
+        // and are what earlier Cove versions required. They are redundant once the declaration
+        // above is in force and can be dropped if you raise the minimum further.
+        //
+        // RequiresPermissionAttribute is not the answer either way: it is an MVC filter
+        // attribute and has no effect on minimal API endpoints.
         endpoints.MapPost(ResolveEndpoint, async (HttpContext http) =>
         {
             var services = http.RequestServices;
@@ -134,6 +139,7 @@ public sealed class FullReleaseLinkExtension : CoveExtensionBase, IActionExtensi
             _log?.LogInformation("Full Release Link: video {VideoId} ({Path}) -> {Url}", videoId, relativePath, url);
 
             return Results.Json(new { url, title = video.Title });
-        });
+        })
+        .RequireCovePermission(CovePermissions.VideosRead);
     }
 }

@@ -41,18 +41,28 @@ extension's child container and you had to go through the repository
 interfaces in `Cove.Core/Interfaces/`. In 1.3.1 it resolves directly, which is
 what this extension does.
 
-**Authorize your own endpoints.** Extension endpoints default to anonymous
-access for backward compatibility, and Cove listens on `0.0.0.0`, so an
-endpoint that declares nothing is callable by anything on the network. Cove
-1.3.x lets you declare intent on the endpoint itself with
-`RequireCovePermission`, `RequireCoveEntityAccess`,
-`AllowWithoutCovePermission` or `AllowCoveAnonymous`, and warns at startup
-about endpoints that declare none.
+**Declare authorization on your endpoints.** Extension endpoints default to
+anonymous access for backward compatibility, and Cove listens on `0.0.0.0`, so
+an endpoint that declares nothing is callable by anything on the network. Cove
+warns at startup about every endpoint that declares none.
 
-This extension predates that and instead checks `ICurrentPrincipalAccessor`
-and `IAuthorizationService` by hand in the handler, returning 401/403 itself.
-That works, and you can verify it with an unauthenticated `curl -X POST`
-against the endpoint, but declaring the requirement is the better way round.
-Moving it over is an open follow-up here. What does not work either way is
-`RequiresPermission`: it is an MVC filter attribute and minimal API endpoints
-ignore it.
+`Cove.Sdk.EndpointAuthorizationExtensions` is how you declare it. The methods
+are generic and chain onto the mapped endpoint:
+
+```csharp
+endpoints.MapPost(ResolveEndpoint, async (HttpContext http) => { ... })
+         .RequireCovePermission(Permissions.VideosRead);
+```
+
+Alongside it there are `RequireCoveEntityAccess(entityType, idRouteValue)`,
+`AllowWithoutCovePermission()` for authenticated but unrestricted endpoints,
+and `AllowCoveAnonymous()` for genuinely public ones. Declaring one of the four
+is what silences the startup warning.
+
+This extension declares `videos.read` and additionally keeps a principal and
+permission check inside the handler. That second check is what older Cove
+versions required and is redundant now; it is kept as a second line of defence
+and can be dropped if you raise `minCoveVersion` further.
+
+What does not work either way is `RequiresPermission`: it is an MVC filter
+attribute and minimal API endpoints ignore it.

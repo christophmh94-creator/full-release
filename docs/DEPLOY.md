@@ -174,13 +174,16 @@ Check the Cove container logs after restart - a clean load looks like:
 [Cove.Plugins.ExtensionManager] Extension com.christophmh.full-release-link (Open in Full Release v1.0.0) initialized
 ```
 
-Cove will also warn that the endpoint was registered "without a Cove
-authorization policy". That is expected here: this extension enforces the
-permission by hand inside the handler instead of declaring it. Verify it with
-an unauthenticated `curl -X POST` against the endpoint, which should come back
-`401` rather than succeed. See
-[cove-extension/README.md](../cove-extension/README.md) for why declaring it
-with `RequireCovePermission` is the better way round.
+You should **not** see a warning about the endpoint being registered "without
+a Cove authorization policy". The extension declares `videos.read` via
+`RequireCovePermission`, so that warning means an older build is still loaded.
+Either way, confirm the gate with an unauthenticated request, which must come
+back `401` rather than succeed:
+
+```sh
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -X POST http://<cove-host>:5073/api/ext/full-release-link/resolve
+```
 
 The base URL the extension points at is controlled by a `FULL_RELEASE_URL`
 environment variable on the Cove container. The fallback baked into the code
