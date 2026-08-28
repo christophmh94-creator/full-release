@@ -1,0 +1,29 @@
+# Your real config lives here once the container writes it. It can contain your
+# tracker passkey and your image host API key - never commit it.
+config.yaml
+appdata/
+output/
+
+# Generated release artifacts. .torrent files embed your announce URL, which
+# contains your personal passkey - committing one leaks your tracker account.
+*.torrent
+*.bbcode.txt
+
+# Secrets via env files
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/

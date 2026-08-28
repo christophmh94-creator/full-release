@@ -15,7 +15,7 @@
   <Category>MediaApp:Other Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
   <TemplateURL/>
-  <Icon>https://raw.githubusercontent.com/CHANGE_ME/full-release/main/icon.png</Icon>
+  <Icon>https://raw.githubusercontent.com/christophmh94-creator/full-release/main/branding/full-release_icon_512.png</Icon>
   <ExtraParams/>
   <PostArgs/>
   <CPUset/>

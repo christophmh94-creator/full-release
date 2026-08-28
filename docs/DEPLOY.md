@@ -6,7 +6,7 @@ Inspect → Package workflow, see [USAGE.md](USAGE.md).
 
 Full Release is a single Docker container with a built-in web GUI - no
 database, no separate services. It talks to an already-running
-[Cove](https://github.com/empornium/luminance) instance over HTTP for
+[Cove](https://github.com/yourcove/cove) instance over HTTP for
 metadata; nothing else is required at deploy time.
 
 ---

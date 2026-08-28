@@ -1,8 +1,8 @@
 # Full Release
 
 A self-hosted web tool that turns a local video **file or folder** into an upload
-package for a **private tracker** (currently scoped to Luminance-based trackers,
-[empornium/luminance](https://github.com/empornium/luminance)). It:
+package for a **private tracker** (currently scoped to trackers running
+[Luminance](https://github.com/empornium/luminance)). It:
 
 1. Lets you browse and select a file/folder from your library.
 2. Queries your **Cove** instance for title, description, performers, tags, and
@@ -37,7 +37,7 @@ Cove instance and your tracker's announce URL, then use the web UI.
 ## Tracker compatibility
 
 Currently built and verified against **Luminance** specifically (the codebase
-EMP and other private trackers in that family run), not assumed. The BBCode
+a number of private trackers in that family run), not assumed. The BBCode
 tag usage, the 8 MiB piece-size cap, the 128-character file-path limit, and
 the source/private-flag auto-correction behavior were all checked directly
 against Luminance's own source (`Legacy/classes/Text.php`,

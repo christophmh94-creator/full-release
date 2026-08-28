@@ -602,7 +602,7 @@ def run_generate(job_id, selection, video, req):
             "cover": cover_url,
             "gif": gif_url,
         }
-        tmpl_path = bcfg.get("template", "app/templates/emp.bbcode.j2")
+        tmpl_path = bcfg.get("template") or "app/templates/release.bbcode.j2"
         if not os.path.isabs(tmpl_path):
             tmpl_path = os.path.join(ROOT_DIR, tmpl_path)
         bb = bbcode.render_bbcode(tmpl_path, ctx)
