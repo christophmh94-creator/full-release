@@ -1,0 +1,50 @@
+[bg=#000000]
+
+[align=center][table=94%,nball,nopad][tr][td][bg=#141414,100%]
+[center][size=6][color=#ffffff]{{ title }}[/color][/size]
+[align=center][bg=#ff9900,16%][size=1] [/size][/bg][/align][/center]
+[/bg][/td][/tr][/table][/align]
+
+[bg=#141414,94%]
+{% if cover %}
+
+[align=center][img=1000]{{ cover }}[/img][/align]
+{% endif %}
+
+[align=center][table=98%,nopad,nball][tr][td] [img=500]{{ preview1 }}[/img] [/td][td] [img=500]{{ preview2 }}[/img][/td][/tr][/table][/align]
+{% if gif %}
+
+[align=center][img=500]{{ gif }}[/img][/align]
+{% endif %}
+
+[/bg]
+
+[align=center][bg=#141414,58%][center][size=3][color=#ff9900]◆[/color][color=#ffffff]  INFO  [/color][color=#ff9900]◆[/color][/size][/center][/bg][/align]
+
+[bg=#141414,94%]
+
+[align=center][table=80%,vat,nball][tr][td]
+[align=center][color=#c8c8cc][size=2][font=Arial]
+{{ details }}
+{% if performers %}
+[color=#ff9900][b]Starring[/b][/color]  {{ performers }}
+{% endif %}
+[/font][/size][/color][/align]
+
+[align=center][table=94%,nball,nopad][tr][td][align=center][bg=#1f1f1f] [color=#9a9a9f][size=1]TYPE[/size][/color]  [color=#ededed]{{ file_type }}[/color] [/bg][/align][/td][td][align=center][bg=#1f1f1f] [color=#9a9a9f][size=1]SIZE[/size][/color]  [color=#ededed]{{ file_size }}[/color] [/bg][/align][/td][td][align=center][bg=#1f1f1f] [color=#9a9a9f][size=1]LENGTH[/size][/color]  [color=#ededed]{{ duration }}[/color] [/bg][/align][/td][td][align=center][bg=#1f1f1f] [color=#9a9a9f][size=1]RES[/size][/color]  [color=#ededed]{{ resolution }}[/color] [/bg][/align][/td][/tr][/table][/align]
+
+[/td][/tr][/table][/align]
+
+[/bg]
+
+[align=center][bg=#141414,58%][center][size=3][color=#ff9900]◆[/color][color=#ffffff]  SCREENS  [/color][color=#ff9900]◆[/color][/size][/center][/bg][/align]
+
+[bg=#141414,94%][align=center]
+
+[img=1000]{{ contactsheet }}[/img]
+
+[/align][/bg]
+
+[align=center][size=1][color=#5a5a5a]PACKAGED WITH[/color][/size][/align]
+[align=center][size=4][color=#ffffff][b]Full[/b][/color][bg=#ff9900][color=#000000][b]Release[/b][/color][/bg][/size][/align]
+[/bg]

@@ -1,0 +1,27 @@
+services:
+  full-release:
+    build: .
+    image: full-release:latest
+    container_name: full-release
+    ports:
+      # Host 8008 -> container 8080 (WebUI). 8080 was already taken on the server.
+      - "8008:8080"
+    volumes:
+      # Persistent config (the container writes a starter config.yaml here on first run).
+      - ./appdata:/config
+      # Where generated torrents / contact sheets / bbcode land.
+      - ./output:/output
+      # Your media library. READ-WRITE: single-file packaging moves the file into
+      # a release folder (<name>/<file> + <name>/screens/) on this same share.
+      - /mnt/user/torrent:/media:rw
+    environment:
+      # Point this at your Cove instance and give it credentials. These override
+      # the matching keys in /config/config.yaml.
+      - COVE_URL=http://192.168.1.10:5073
+      # Cove login (if Cove auth is enabled) OR set COVE_API_KEY with a token instead.
+      # - COVE_USERNAME=
+      # - COVE_PASSWORD=
+      # - COVE_API_KEY=
+      # - ANNOUNCE_URL=
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped

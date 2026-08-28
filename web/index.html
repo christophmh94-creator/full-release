@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Full Release · packaging bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0a; --panel:#161616; --panel-2:#1e1e1e; --line:#2a2a2a;
+    --inset:#050505;
+    --text:#f2f2f2; --muted:#9a9a9a; --faint:#5e5e5e;
+    --accent:#ff9900; --accent-press:#e07f00;
+    --ok:#ff9900; --warn:#f2c14e; --bad:#e0574e; --sel:#ff9900;
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    --r:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;font-size:15px;line-height:1.5}
+  a{color:var(--sel)}
+  button{font-family:var(--sans);cursor:pointer}
+  ::selection{background:rgba(255,153,0,.3)}
+
+  /* ---- top bar ---- */
+  header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:18px;
+    padding:14px 26px;background:linear-gradient(180deg,#0e0e0e,#080808);
+    border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:13px;min-width:0}
+  .brand .logo{display:block}
+  .brand .sub{font-family:var(--mono);font-size:11px;color:var(--faint);
+    text-transform:uppercase;letter-spacing:2px;padding-left:13px;border-left:1px solid var(--line)}
+  .pills{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .pill{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:12px;
+    padding:5px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);
+    background:#111}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+  .dot.ok{background:var(--ok);box-shadow:0 0 0 3px rgba(255,153,0,.18)}
+  .dot.warn{background:var(--warn)}
+  .dot.bad{background:var(--bad)}
+
+  /* ---- layout: pipeline rail + work column ---- */
+  .wrap{display:grid;grid-template-columns:210px minmax(0,1fr);gap:0;
+    max-width:1120px;margin:0 auto;padding:30px 26px 80px}
+  .rail{position:sticky;top:90px;align-self:start;height:max-content;padding-top:6px}
+  .rail ol{list-style:none;margin:0;padding:0;position:relative}
+  .rail ol::before{content:"";position:absolute;left:13px;top:14px;bottom:14px;width:2px;
+    background:var(--line)}
+  .step{position:relative;padding:0 0 26px 40px;color:var(--faint)}
+  .step:last-child{padding-bottom:0}
+  .step .node{position:absolute;left:5px;top:0;width:18px;height:18px;border-radius:50%;
+    border:2px solid var(--line);background:var(--bg);font-family:var(--mono);font-size:10px;
+    display:flex;align-items:center;justify-content:center;color:var(--faint);transition:.25s}
+  .step .k{font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase}
+  .step .t{font-weight:600;font-size:13px;color:inherit;margin-top:1px}
+  .step.active{color:var(--text)}
+  .step.active .node{border-color:var(--accent);color:var(--accent);
+    box-shadow:0 0 0 4px rgba(255,153,0,.14)}
+  .step.done{color:var(--muted)}
+  .step.done .node{border-color:var(--ok);background:var(--ok);color:#000}
+  .step.done .node::after{content:"\2713"}
+  .step.done .node span{display:none}
+
+  /* ---- panels ---- */
+  .col{display:flex;flex-direction:column;gap:22px;min-width:0}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+    overflow:hidden}
+  .panel.locked{opacity:.5;pointer-events:none;filter:saturate(.4)}
+  .phead{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#1c1c1c,#161616)}
+  .phead .idx{font-family:var(--mono);font-size:12px;color:var(--accent)}
+  .phead h2{margin:0;font-size:15px;font-weight:600;letter-spacing:.2px}
+  .phead .hint{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .pbody{padding:18px}
+
+  /* ---- file browser ---- */
+  .crumbs{display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-family:var(--mono);
+    font-size:12.5px;margin-bottom:12px;color:var(--muted)}
+  .crumbs button{background:none;border:none;color:var(--sel);padding:2px 4px;font-family:var(--mono);
+    font-size:12.5px;border-radius:5px}
+  .crumbs button:hover{background:#1e1e1e}
+  .crumbs .sep{color:var(--faint)}
+  .list{border:1px solid var(--line);border-radius:8px;max-height:340px;overflow:auto;background:var(--inset)}
+  .row{display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:1px solid #1a1a1a;
+    cursor:pointer;font-family:var(--mono);font-size:13px}
+  .row:last-child{border-bottom:none}
+  .row:hover{background:#181818}
+  .row .ico{width:16px;text-align:center;color:var(--faint)}
+  .row.dir .ico{color:var(--accent)}
+  .row .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+  .row .sz{color:var(--faint);font-size:12px}
+  .row .pick{opacity:0;font-family:var(--sans);font-size:11px;font-weight:600;color:#000;
+    border:1px solid var(--accent);background:var(--accent);padding:3px 9px;border-radius:6px}
+  .row:hover .pick{opacity:1}
+  .row.selected{background:rgba(255,153,0,.07);outline:1px solid rgba(255,153,0,.5);outline-offset:-1px}
+  .empty{padding:24px;text-align:center;color:var(--faint);font-family:var(--mono);font-size:12.5px}
+  .selbar{display:flex;align-items:center;gap:10px;margin-top:14px;padding:11px 14px;
+    border:1px dashed var(--line);border-radius:8px;background:var(--inset);font-family:var(--mono);font-size:12.5px}
+  .selbar .lab{color:var(--faint);text-transform:uppercase;letter-spacing:1px;font-size:10px}
+  .selbar .val{color:var(--sel);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+  .selbar.none .val{color:var(--faint)}
+
+  /* ---- buttons ---- */
+  .btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--accent);
+    background:var(--accent);color:#000;font-weight:700;font-size:14px;padding:10px 18px;
+    border-radius:8px;transition:.15s}
+  .btn:hover{background:var(--accent-press);border-color:var(--accent-press)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.ghost{background:transparent;color:var(--text);border-color:var(--line);font-weight:600}
+  .btn.ghost:hover{background:#1e1e1e;border-color:#3a3a3a}
+  .btn.sm{padding:6px 12px;font-size:12.5px}
+
+  /* ---- form ---- */
+  .matchbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;
+    padding:10px 12px;border-radius:8px;background:var(--inset);border:1px solid var(--line);font-size:13px}
+  .matchbar.hit{border-color:rgba(255,153,0,.45)}
+  .matchbar.miss{border-color:rgba(242,193,78,.4)}
+  .matchbar .tag{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:1px}
+  select,input,textarea{font-family:var(--mono);font-size:13px;color:var(--text);
+    background:var(--inset);border:1px solid var(--line);border-radius:7px;padding:9px 11px;width:100%}
+  select:focus,input:focus,textarea:focus{outline:none;border-color:var(--sel);
+    box-shadow:0 0 0 3px rgba(255,153,0,.16)}
+  textarea{resize:vertical;line-height:1.55}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .grid.four{grid-template-columns:repeat(4,1fr)}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+  .field label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:1px;
+    color:var(--muted)}
+  .field.span{grid-column:1/-1}
+  .searchwrap{position:relative}
+  .results{position:absolute;z-index:6;left:0;right:0;top:calc(100% + 4px);background:#1e1e1e;
+    border:1px solid var(--line);border-radius:8px;max-height:240px;overflow:auto;display:none}
+  .results.show{display:block}
+  .results .r{padding:9px 12px;border-bottom:1px solid #161616;cursor:pointer;font-family:var(--mono);
+    font-size:12.5px}
+  .results .r:hover{background:#262626}
+  .results .r small{color:var(--faint)}
+
+  /* ---- progress ---- */
+  .prog{margin-top:4px}
+  .bar{height:10px;border-radius:6px;background:var(--inset);border:1px solid var(--line);overflow:hidden}
+  .bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff9900,#ffb347);
+    transition:width .3s ease}
+  .progmeta{display:flex;justify-content:space-between;margin-top:8px;font-family:var(--mono);
+    font-size:12px;color:var(--muted)}
+
+  /* ---- result ---- */
+  .specs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+  .spec{font-family:var(--mono);font-size:12px;padding:5px 10px;border-radius:6px;background:var(--inset);
+    border:1px solid var(--line);color:var(--muted)}
+  .spec b{color:var(--text);font-weight:600}
+  .shots{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:16px}
+  .shots img{width:100%;border-radius:8px;border:1px solid var(--line);display:block}
+  .thumbs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .bbwrap{position:relative}
+  .bbwrap textarea{height:280px;font-size:12px}
+  .copybtn{position:absolute;top:10px;right:10px}
+  .warns{margin-bottom:14px;display:flex;flex-direction:column;gap:8px}
+  .warn-item{font-family:var(--mono);font-size:12px;color:#f0c98a;background:rgba(242,193,78,.08);
+    border:1px solid rgba(242,193,78,.3);border-radius:7px;padding:9px 12px}
+  .err{font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;color:#f0a59c;
+    background:rgba(224,87,78,.08);border:1px solid rgba(224,87,78,.3);border-radius:8px;padding:14px}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+
+  .note{font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:10px}
+  @media (max-width:820px){
+    .wrap{grid-template-columns:1fr}
+    .rail{display:none}
+    .grid.four{grid-template-columns:1fr 1fr}
+  }
+
+/* --- added: filter bar, search results, uploaded links --- */
+.filterbar{display:flex;gap:8px;margin-bottom:10px}
+.filterbar input{flex:1;padding:9px 12px;border-radius:8px;border:1px solid var(--line,#2a2a30);background:var(--card,#141414);color:var(--text,#ededed);font-size:13px}
+.searchhead{padding:6px 4px 10px;color:var(--faint,#9a9a9f);font-size:12px}
+.nm .ppath{display:block;color:var(--faint,#6a6a70);font-size:11px;margin-top:2px;font-family:var(--mono,monospace);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.links{display:flex;flex-direction:column;gap:6px;background:var(--card,#141414);border:1px solid var(--line,#2a2a30);border-radius:8px;padding:10px 12px}
+.linkrow{display:flex;gap:10px;align-items:baseline;font-size:12px;overflow:hidden}
+.linklab{color:var(--accent,#ff9900);min-width:110px;flex:0 0 auto;font-weight:600}
+.linkrow a{color:var(--text,#9ad);word-break:break-all}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo" style="display:inline-flex;align-items:center;font-family:var(--sans);font-weight:700;font-size:20px;line-height:1;letter-spacing:-0.2px">
+      <span style="color:#fff">Full</span><span style="background:var(--accent);color:#000;padding:3px 8px;border-radius:5px;margin-left:6px">Release</span>
+    </span>
+    <span class="sub">packaging bench</span>
+  </div>
+  <div class="pills" id="pills">
+    <span class="pill"><span class="dot" id="dot-cove"></span> cove</span>
+    <span class="pill"><span class="dot" id="dot-ann"></span> announce</span>
+    <span class="pill"><span class="dot" id="dot-img"></span> <span id="img-label">image host</span></span>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="rail">
+    <ol>
+      <li class="step active" id="rstep1" data-target="p1"><span class="node"><span>1</span></span>
+        <div class="k">select</div><div class="t">Pick file or folder</div></li>
+      <li class="step" id="rstep2" data-target="p2"><span class="node"><span>2</span></span>
+        <div class="k">inspect</div><div class="t">Match &amp; edit metadata</div></li>
+      <li class="step" id="rstep3" data-target="p3"><span class="node"><span>3</span></span>
+        <div class="k">package</div><div class="t">Torrent · sheet · BBCode</div></li>
+    </ol>
+  </nav>
+
+  <main class="col">
+    <!-- STEP 1 -->
+    <section class="panel" id="p1">
+      <div class="phead"><span class="idx">01</span><h2>Select source</h2>
+        <span class="hint" id="rootHint"></span></div>
+      <div class="pbody">
+        <div class="filterbar">
+          <input id="fileFilter" placeholder="filter this folder…  ·  press Enter to search the whole library" autocomplete="off" spellcheck="false">
+          <button class="btn ghost sm" id="filterClear" style="display:none" onclick="clearFilter()">clear</button>
+        </div>
+        <div class="crumbs" id="crumbs"></div>
+        <div class="list" id="list"><div class="empty">Loading…</div></div>
+        <div class="selbar none" id="selbar">
+          <span class="lab">selected</span>
+          <span class="val" id="selVal">nothing yet — click a file, or open a folder and choose “select folder”.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section class="panel locked" id="p2">
+      <div class="phead"><span class="idx">02</span><h2>Inspect &amp; describe</h2>
+        <span class="hint">pulled from Cove where available</span></div>
+      <div class="pbody">
+        <button class="btn" id="analyzeBtn" disabled>Inspect selection</button>
+        <div id="formArea" style="display:none;margin-top:18px"></div>
+      </div>
+    </section>
+
+    <!-- STEP 3 -->
+    <section class="panel locked" id="p3">
+      <div class="phead"><span class="idx">03</span><h2>Package</h2>
+        <span class="hint">writes to /output</span></div>
+      <div class="pbody" id="pkgBody">
+        <button class="btn" id="genBtn" disabled>Build torrent, contact sheet &amp; BBCode</button>
+        <div id="progArea" style="display:none" class="prog">
+          <div class="bar"><i id="barFill"></i></div>
+          <div class="progmeta"><span id="stageTxt">Starting…</span><span id="pctTxt">0%</span></div>
+        </div>
+        <div id="resultArea" style="display:none;margin-top:8px"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const S = { config:null, path:"", isRootList:true, selected:null, analysis:null, jobTimer:null, searchMode:false, lastUploaded:[] };
+
+const $ = id => document.getElementById(id);
+const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g, c => (
+  {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function api(url, opts){
+  const r = await fetch(url, opts);
+  let data = null;
+  try { data = await r.json(); } catch(e){}
+  if(!r.ok){ throw new Error((data && data.detail) || ("HTTP "+r.status)); }
+  return data;
+}
+function fmtSize(n){
+  if(!n) return "";
+  const u=["B","KiB","MiB","GiB","TiB"]; let i=0; n=Number(n);
+  while(n>=1024 && i<u.length-1){ n/=1024; i++; }
+  return (i<2?Math.round(n):n.toFixed(2))+" "+u[i];
+}
+
+/* ---------- status ---------- */
+async function loadConfig(){
+  try{ S.config = await api("/api/config"); }
+  catch(e){ S.config = {}; }
+  const c = S.config;
+  const sd=$("dot-cove");
+  if(!c.cove_configured){ sd.className="dot warn"; sd.title="Cove URL not set in config"; }
+  else if(c.cove_ok){ sd.className="dot ok"; sd.title="Connected: Cove "+(c.cove_version||""); }
+  else { sd.className="dot bad"; sd.title="Configured but unreachable"; }
+
+  const ad=$("dot-ann");
+  ad.className = c.announce_set ? "dot ok" : "dot warn";
+  ad.title = c.announce_set ? "Announce URL set" : "No announce URL — torrent won't be tracker-ready";
+
+  const idd=$("dot-img");
+  const prov = c.imagehost_provider || "manual";
+  const host = c.imagehost_host || prov;
+  if (prov === "manual") {
+    $("img-label").textContent = "manual upload";
+    idd.className = "dot warn";
+    idd.title = "Images saved locally; URLs are placeholders";
+  } else if (c.imagehost_ready) {
+    $("img-label").textContent = host;
+    idd.className = "dot ok";
+    idd.title = "Auto-upload via " + host;
+  } else {
+    $("img-label").textContent = host + " (no key)";
+    idd.className = "dot bad";
+    idd.title = "Provider '" + prov + "' is selected but its API key is missing";
+  }
+}
+
+/* ---------- rail ---------- */
+function setStep(active, done){
+  [1,2,3].forEach(n=>{
+    const el=$("rstep"+n);
+    el.classList.toggle("active", n===active);
+    el.classList.toggle("done", done.includes(n));
+  });
+}
+document.querySelectorAll(".step").forEach(s=>s.addEventListener("click",()=>{
+  const t=$(s.dataset.target); if(t) t.scrollIntoView({behavior:"smooth",block:"start"});
+}));
+
+/* ---------- browser ---------- */
+async function browse(path){
+  $("list").innerHTML = '<div class="empty">Loading…</div>';
+  let data;
+  try{ data = await api("/api/browse?path="+encodeURIComponent(path||"")); }
+  catch(e){ $("list").innerHTML = '<div class="empty">'+esc(e.message)+'</div>'; return; }
+  S.path = data.path; S.isRootList = data.is_root_list;
+  S.searchMode = false;
+  const ff=$("fileFilter"); if(ff) ff.value="";
+  const fc=$("filterClear"); if(fc) fc.style.display="none";
+  renderCrumbs(data);
+  renderList(data);
+  $("rootHint").textContent = data.is_root_list ? "media roots" : "";
+}
+
+
+/* ---------- file filter / search ---------- */
+function liveFilter(){
+  const q=$("fileFilter").value.trim().toLowerCase();
+  $("filterClear").style.display = q ? "inline-flex" : "none";
+  if(S.searchMode) return; // in deep-search results, typing doesn't re-filter live
+  const rows=document.querySelectorAll("#list .row");
+  let shown=0;
+  rows.forEach(r=>{
+    if(r.classList.contains("pick-folder")){ r.style.display=""; return; } // keep "select this folder"
+    const nm=(r.querySelector(".nm")?.textContent||"").toLowerCase();
+    const hit = !q || nm.includes(q);
+    r.style.display = hit ? "" : "none";
+    if(hit) shown++;
+  });
+}
+async function deepSearch(){
+  const q=$("fileFilter").value.trim();
+  if(q.length<2){ return; }
+  const startPath = S.isRootList ? "" : (S.path||"");
+  $("list").innerHTML='<div class="empty">Searching…</div>';
+  let data;
+  try{ data=await api("/api/search?q="+encodeURIComponent(q)+"&path="+encodeURIComponent(startPath)); }
+  catch(e){ $("list").innerHTML='<div class="empty">'+esc(e.message)+'</div>'; return; }
+  S.searchMode=true;
+  $("filterClear").style.display="inline-flex";
+  renderSearchResults(data.entries||[], data.capped, q);
+}
+function renderSearchResults(entries, capped, q){
+  const l=$("list");
+  if(!entries.length){ l.innerHTML='<div class="empty">No matches for “'+esc(q)+'”.</div>'; return; }
+  let head='<div class="searchhead">'+entries.length+(capped?"+":"")+' result'+(entries.length===1?"":"s")+' for “'+esc(q)+'”'+(capped?' (showing first '+entries.length+')':'')+'</div>';
+  let rows="";
+  entries.forEach(e=>{
+    const safe=e.path.replace(/'/g,"\\'");
+    const parent=e.path.slice(0, e.path.length-e.name.length).replace(/\/$/,"");
+    if(e.type==="dir"){
+      rows+='<div class="row dir" onclick="browse(\''+safe+'\')"><span class="ico">▸</span>'+
+            '<span class="nm">'+esc(e.name)+'<span class="ppath">'+esc(parent)+'</span></span><span class="sz"></span></div>';
+    } else {
+      rows+='<div class="row file" data-path="'+esc(e.path)+'" onclick="selectFile(this,\''+safe+'\',\''+esc(e.name).replace(/'/g,"\\'")+'\')">'+
+            '<span class="ico">◆</span><span class="nm">'+esc(e.name)+'<span class="ppath">'+esc(parent)+'</span></span>'+
+            '<span class="sz">'+fmtSize(e.size)+'</span><span class="pick">select ▸</span></div>';
+    }
+  });
+  l.innerHTML=head+rows;
+}
+function clearFilter(){
+  const ff=$("fileFilter"); ff.value="";
+  $("filterClear").style.display="none";
+  S.searchMode=false;
+  browse(S.isRootList ? "" : (S.path||""));
+  ff.focus();
+}
+
+function renderCrumbs(data){
+  const c=$("crumbs");
+  if(data.is_root_list){ c.innerHTML='<span class="sep">roots</span>'; return; }
+  const parts=[];
+  parts.push('<button onclick="browse(\'\')">roots</button>');
+  // build incremental segments from the absolute path
+  const segs = data.path.split("/").filter(Boolean);
+  let acc="";
+  segs.forEach((seg,i)=>{
+    acc += "/"+seg;
+    parts.push('<span class="sep">/</span>');
+    if(i===segs.length-1) parts.push('<span style="color:var(--text)">'+esc(seg)+'</span>');
+    else parts.push('<button onclick="browse(\''+acc.replace(/'/g,"\\'")+'\')">'+esc(seg)+'</button>');
+  });
+  c.innerHTML = parts.join("");
+}
+
+function renderList(data){
+  const l=$("list");
+  let rows="";
+  if(!data.is_root_list){
+    rows += '<div class="row dir pick-folder" onclick="selectFolder(\''+S.path.replace(/'/g,"\\'")+'\')">'+
+            '<span class="ico">▣</span><span class="nm">Select this folder</span>'+
+            '<span class="pick">select ▸</span></div>';
+  }
+  (data.entries||[]).forEach(e=>{
+    const safe=e.path.replace(/'/g,"\\'");
+    if(e.type==="dir"){
+      rows += '<div class="row dir" onclick="browse(\''+safe+'\')">'+
+              '<span class="ico">▸</span><span class="nm">'+esc(e.name)+'</span>'+
+              '<span class="sz"></span></div>';
+    } else {
+      rows += '<div class="row file" data-path="'+esc(e.path)+'" onclick="selectFile(this,\''+safe+'\',\''+esc(e.name).replace(/'/g,"\\'")+'\')">'+
+              '<span class="ico">◆</span><span class="nm">'+esc(e.name)+'</span>'+
+              '<span class="sz">'+fmtSize(e.size)+'</span>'+
+              '<span class="pick">select ▸</span></div>';
+    }
+  });
+  l.innerHTML = rows || '<div class="empty">No folders or video files here.</div>';
+}
+
+function markSelected(path){
+  document.querySelectorAll(".row.selected").forEach(r=>r.classList.remove("selected"));
+  document.querySelectorAll('.row.file').forEach(r=>{
+    if(r.dataset.path===path) r.classList.add("selected");
+  });
+}
+function setSelection(sel){
+  S.selected = sel; S.analysis=null;
+  const b=$("selbar"); b.classList.remove("none");
+  $("selVal").textContent = (sel.isFolder?"[folder] ":"[file] ")+sel.path;
+  $("p2").classList.remove("locked");
+  $("analyzeBtn").disabled=false;
+  $("formArea").style.display="none";
+  $("p3").classList.add("locked"); $("genBtn").disabled=true;
+  $("resultArea").style.display="none"; $("progArea").style.display="none";
+  setStep(2,[1]);
+}
+function selectFile(el, path, name){ markSelected(path); setSelection({path, name, isFolder:false}); }
+function selectFolder(path){ markSelected(null); setSelection({path, name:path.split("/").pop(), isFolder:true}); }
+
+/* ---------- analyze ---------- */
+async function analyze(sceneId){
+  $("analyzeBtn").disabled=true;
+  $("analyzeBtn").textContent = sceneId ? "Applying…" : "Inspecting…";
+  try{
+    const body = {path:S.selected.path};
+    if(sceneId) body.scene_id=sceneId;
+    const data = await api("/api/analyze",{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    S.analysis=data;
+    renderForm(data);
+    $("p3").classList.remove("locked"); $("genBtn").disabled=false;
+    setStep(2,[1]);
+  }catch(e){
+    $("formArea").style.display="block";
+    $("formArea").innerHTML='<div class="err">'+esc(e.message)+'</div>';
+  }finally{
+    $("analyzeBtn").disabled=false; $("analyzeBtn").textContent="Re-inspect";
+  }
+}
+
+function renderForm(d){
+  const m=d.meta, info=d.info||{};
+  let match="";
+  if(!S.config.cove_configured){
+    match='<div class="matchbar"><span class="tag" style="color:var(--faint)">cove off</span>'+
+          '<span>No Cove configured — fill the fields in manually.</span></div>';
+  } else if(d.scene){
+    match='<div class="matchbar hit"><span class="tag" style="color:var(--ok)">matched</span>'+
+          '<span>Scene #'+esc(d.scene.id)+(d.scene.title?' · '+esc(d.scene.title):'')+'</span>'+
+          '<button class="btn ghost sm" style="margin-left:auto" onclick="toggleSearch()">change</button></div>';
+  } else if(d.matches && d.matches.length>1){
+    let opts=d.matches.map(x=>'<option value="'+esc(x.id)+'">#'+esc(x.id)+' — '+esc(x.title||x.basename||"")+(x.studio?' ['+esc(x.studio)+']':'')+'</option>').join("");
+    match='<div class="matchbar"><span class="tag" style="color:var(--warn)">'+d.matches.length+' matches</span>'+
+          '<select id="matchSel" style="flex:1" onchange="applyMatch()"><option value="">choose a scene…</option>'+opts+'</select></div>';
+  } else {
+    match='<div class="matchbar miss"><span class="tag" style="color:var(--warn)">no match</span>'+
+          '<span>Not found in Cove by filename.</span>'+
+          '<button class="btn ghost sm" style="margin-left:auto" onclick="toggleSearch()">search Cove</button></div>';
+  }
+
+  const search='<div id="searchBox" style="display:none;margin-bottom:16px">'+
+    '<div class="searchwrap"><input id="coveQ" placeholder="search Cove by title / performer…" '+
+    'oninput="debouncedSearch()" autocomplete="off"><div class="results" id="coveResults"></div></div></div>';
+
+  const folderNote = d.is_folder
+    ? '<div class="note">Folder selected — the torrent will contain the whole folder; the contact sheet uses the largest video inside ('+esc(d.video.split("/").pop())+').</div>'
+    : '';
+
+  const cs = (S.config.contactsheet)||{};
+  $("formArea").style.display="block";
+  $("formArea").innerHTML = match + search +
+    '<div class="field"><label>Title</label><input id="f_title" value="'+esc(m.title)+'"></div>'+
+    '<div class="field"><label>Description / plot</label><textarea id="f_details" rows="5">'+esc(m.details)+'</textarea></div>'+
+    '<div class="field"><label>Performers (comma separated)</label><input id="f_perf" value="'+esc(m.performers)+'"></div>'+
+    '<div class="grid four">'+
+      '<div class="field"><label>File type</label><input id="f_type" value="'+esc(m.file_type)+'"></div>'+
+      '<div class="field"><label>File size</label><input id="f_size" value="'+esc(m.file_size)+'"></div>'+
+      '<div class="field"><label>Duration</label><input id="f_dur" value="'+esc(m.duration)+'"></div>'+
+      '<div class="field"><label>Resolution</label><input id="f_res" value="'+esc(m.resolution)+'"></div>'+
+    '</div>'+
+    '<div class="grid">'+
+      '<div class="field"><label>Sheet columns</label><input id="f_cols" type="number" min="1" max="8" value="'+(cs.columns||4)+'"></div>'+
+      '<div class="field"><label>Sheet rows</label><input id="f_rows" type="number" min="1" max="12" value="'+(cs.rows||5)+'"></div>'+
+    '</div>'+
+    '<div class="specs">'+
+      '<span class="spec">codec <b>'+esc(info.video_codec||"?")+'</b></span>'+
+      '<span class="spec">audio <b>'+esc(info.audio_codec||"?")+'</b></span>'+
+      '<span class="spec">fps <b>'+esc(info.frame_rate||"?")+'</b></span>'+
+      '<span class="spec">container <b>'+esc(info.format||"?")+'</b></span>'+
+    '</div>'+ folderNote;
+}
+
+function toggleSearch(){ const b=$("searchBox"); b.style.display = b.style.display==="none"?"block":"none"; if(b.style.display==="block") $("coveQ").focus(); }
+function applyMatch(){ const v=$("matchSel").value; if(v) analyze(v); }
+
+let searchT=null;
+function debouncedSearch(){ clearTimeout(searchT); searchT=setTimeout(runSearch,300); }
+async function runSearch(){
+  const q=$("coveQ").value.trim(); const box=$("coveResults");
+  if(q.length<2){ box.classList.remove("show"); return; }
+  try{
+    const d=await api("/api/cove/search?q="+encodeURIComponent(q));
+    if(!d.scenes.length){ box.innerHTML='<div class="r"><small>no results</small></div>'; }
+    else box.innerHTML=d.scenes.map(x=>'<div class="r" onclick="pickScene(\''+esc(x.id)+'\')">#'+esc(x.id)+' — '+esc(x.title||x.basename||"")+(x.studio?' <small>['+esc(x.studio)+']</small>':'')+'</div>').join("");
+    box.classList.add("show");
+  }catch(e){ box.innerHTML='<div class="r"><small>'+esc(e.message)+'</small></div>'; box.classList.add("show"); }
+}
+function pickScene(id){ $("coveResults").classList.remove("show"); analyze(id); }
+
+/* ---------- generate ---------- */
+async function generate(){
+  const g=$("genBtn"); g.disabled=true;
+  $("resultArea").style.display="none";
+  $("progArea").style.display="block";
+  $("barFill").style.width="0%"; $("pctTxt").textContent="0%"; $("stageTxt").textContent="Starting…";
+  setStep(3,[1,2]);
+  const body={
+    path:S.selected.path,
+    scene_id:(S.analysis && S.analysis.scene) ? String(S.analysis.scene.id) : null,
+    title:$("f_title").value, details:$("f_details").value, performers:$("f_perf").value,
+    file_type:$("f_type").value, file_size:$("f_size").value,
+    duration:$("f_dur").value, resolution:$("f_res").value,
+    columns:parseInt($("f_cols").value)||null, rows:parseInt($("f_rows").value)||null,
+  };
+  try{
+    const {job_id}=await api("/api/generate",{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    pollJob(job_id);
+  }catch(e){
+    $("progArea").style.display="none";
+    $("resultArea").style.display="block";
+    $("resultArea").innerHTML='<div class="err">'+esc(e.message)+'</div>';
+    g.disabled=false;
+  }
+}
+
+function pollJob(id){
+  clearInterval(S.jobTimer);
+  S.jobTimer=setInterval(async()=>{
+    let j;
+    try{ j=await api("/api/jobs/"+id); }catch(e){ return; }
+    $("barFill").style.width=(j.progress||0)+"%";
+    $("pctTxt").textContent=(j.progress||0)+"%";
+    $("stageTxt").textContent=j.stage||"";
+    if(j.status==="done"){ clearInterval(S.jobTimer); renderResult(j.result); }
+    else if(j.status==="error"){ clearInterval(S.jobTimer); renderError(j.error); }
+  },900);
+}
+
+function renderError(err){
+  $("genBtn").disabled=false;
+  $("resultArea").style.display="block";
+  $("resultArea").innerHTML='<div class="err">'+esc(err||"Unknown error")+'</div>';
+}
+
+function renderResult(res){
+  $("genBtn").disabled=false; $("genBtn").textContent="Re-package";
+  setStep(3,[1,2,3]);
+  const ti=res.torrent_info||{};
+  const fileUrl=p=>"/api/file?path="+encodeURIComponent(p);
+
+  let warns="";
+  if(res.warnings && res.warnings.length){
+    warns='<div class="warns">'+res.warnings.map(w=>'<div class="warn-item">'+esc(w)+'</div>').join("")+'</div>';
+  }
+
+  const thumbs=(res.previews||[]).map(p=>'<img src="'+fileUrl(p)+'" alt="preview">').join("");
+
+  $("resultArea").style.display="block";
+  $("resultArea").innerHTML =
+    warns +
+    '<div class="specs">'+
+      '<span class="spec">name <b>'+esc(ti.name||"")+'</b></span>'+
+      '<span class="spec">size <b>'+fmtSize(ti.size)+'</b></span>'+
+      '<span class="spec">piece <b>'+fmtSize(ti.piece_size)+'</b></span>'+
+      '<span class="spec">private <b>'+(ti.private?"yes":"no")+'</b></span>'+
+      (ti.source?'<span class="spec">source <b>'+esc(ti.source)+'</b></span>':'')+
+      '<span class="spec">infohash <b>'+esc((ti.infohash||"").slice(0,16))+'…</b></span>'+
+    '</div>'+
+    '<div class="shots"><img src="'+fileUrl(res.contact_sheet)+'" alt="contact sheet"></div>'+(res.gif_file?'<div class="shots"><img src="'+fileUrl(res.gif_file)+'" alt="animated preview"></div>':'')+
+    (thumbs?'<div class="thumbs">'+thumbs+'</div>':'')+
+    '<div class="toolbar">'+
+      '<a class="btn" href="'+fileUrl(res.torrent)+'" download>Download .torrent</a>'+
+      '<a class="btn ghost" href="'+fileUrl(res.bbcode_file)+'" download>Download BBCode .txt</a>'+
+    '</div>'+
+    (res.tags_line
+      ? '<div class="field span" style="margin-top:18px"><label>Tracker tags (copy-paste)</label>'+
+        '<div class="bbwrap"><input id="tagsout" spellcheck="false" readonly value="'+esc(res.tags_line)+'" style="font-family:var(--mono,monospace)">'+
+        '<button class="btn sm copybtn" onclick="copyField(\'tagsout\',this)">Copy</button></div></div>'
+      : '')+
+    ((res.uploaded && res.uploaded.length)
+      ? '<div class="field span" style="margin-top:18px"><label>Uploaded image links</label>'+
+        '<div class="links" id="linksBox">'+
+        res.uploaded.map(u=>'<div class="linkrow"><span class="linklab">'+esc(u.label)+'</span>'+
+          '<a href="'+esc(u.url)+'" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">'+esc(u.url)+'</a></div>').join("")+
+        '</div>'+
+        '<button class="btn sm ghost" style="margin-top:8px" onclick="copyLinks(this)">Copy all links</button></div>'
+      : '')+
+    '<div class="field span" style="margin-top:18px"><label>BBCode for your tracker</label>'+
+      '<div class="bbwrap"><textarea id="bbout" spellcheck="false">'+esc(res.bbcode)+'</textarea>'+
+      '<button class="btn sm copybtn" onclick="copyBB()">Copy</button></div></div>'+
+    '<div class="note">Saved to '+esc(res.workdir)+'</div>';
+  S.lastUploaded = res.uploaded || [];
+}
+
+function copyField(id, btn){
+  const el=$(id); if(!el) return;
+  el.focus(); el.select();
+  let ok=false; try{ ok=document.execCommand("copy"); }catch(e){}
+  if(!ok && navigator.clipboard){ navigator.clipboard.writeText(el.value).catch(()=>{}); }
+  if(btn){ const t=btn.textContent; btn.textContent="Copied"; setTimeout(()=>btn.textContent=t,1200); }
+}
+function copyLinks(btn){
+  const txt=(S.lastUploaded||[]).map(u=>u.label+": "+u.url).join("\n");
+  if(navigator.clipboard){ navigator.clipboard.writeText(txt).catch(()=>{}); }
+  else { const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch(e){} ta.remove(); }
+  if(btn){ const t=btn.textContent; btn.textContent="Copied"; setTimeout(()=>btn.textContent=t,1200); }
+}
+function copyBB(){
+  const ta=$("bbout"); ta.focus(); ta.select();
+  let ok=false;
+  try{ ok=document.execCommand("copy"); }catch(e){}
+  if(!ok && navigator.clipboard){ navigator.clipboard.writeText(ta.value).catch(()=>{}); }
+  const btn=document.querySelector(".copybtn");
+  if(btn){ const t=btn.textContent; btn.textContent="Copied"; setTimeout(()=>btn.textContent=t,1200); }
+}
+
+/* ---------- preselect via ?path= (e.g. opened from Cove's "Open in Full Release" button) ---------- */
+async function preselect(path){
+  const name = path.split("/").pop();
+  setSelection({path, name, isFolder:false});
+  const parent = path.slice(0, path.length-name.length).replace(/\/$/,"");
+  await browse(parent);
+  markSelected(path);
+  analyze();
+}
+
+/* ---------- wire up ---------- */
+$("analyzeBtn").addEventListener("click",()=>analyze());
+$("genBtn").addEventListener("click",generate);
+document.addEventListener("click",e=>{ // close search dropdown on outside click
+  if(!e.target.closest(".searchwrap")){ const r=$("coveResults"); if(r) r.classList.remove("show"); }
+});
+
+$("fileFilter").addEventListener("input", liveFilter);
+$("fileFilter").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); deepSearch(); }});
+loadConfig();
+const preselectPath = new URLSearchParams(location.search).get("path");
+if(preselectPath){ preselect(preselectPath); } else { browse(""); }
+</script>
+</body>
+</html>
