@@ -86,6 +86,9 @@ full-release/
 │       └── release.bbcode.legacy.j2  previous version, kept for rollback
 ├── web/
 │   └── index.html       single-file operator console (no build step)
+├── cove-extension/     optional "Open in Full Release" button for Cove
+│   ├── refs/           empty; the Cove DLLs you build against go here
+│   └── src/FullReleaseLink/   IActionExtension + IApiExtension + a JS handler
 ├── branding/           logo assets (not used at runtime)
 │   ├── full-release_wordmark.svg / .png          transparent, for dark backgrounds
 │   ├── full-release_wordmark_black.svg / .png    on a black plate
@@ -95,8 +98,9 @@ full-release/
 ```
 
 Only `requirements.txt`, `app/` and `web/` are copied into the Docker image —
-`branding/`, `previews/`, and `docs/` are reference material and don't affect
-the build.
+`branding/`, `previews/`, `docs/` and `cove-extension/` are reference material
+and don't affect the build. The Cove extension is built and deployed
+separately, see [cove-extension/README.md](cove-extension/README.md).
 
 ### Branding
 

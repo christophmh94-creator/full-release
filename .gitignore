@@ -13,6 +13,13 @@ output/
 .env
 .env.*
 
+# Cove extension build. The reference DLLs are copied out of your own running
+# Cove container and are not ours to redistribute; the rest is build output.
+cove-extension/refs/*.dll
+cove-extension/out/
+cove-extension/src/FullReleaseLink/bin/
+cove-extension/src/FullReleaseLink/obj/
+
 # Python
 __pycache__/
 *.py[cod]

@@ -119,24 +119,23 @@ Cove container**, not against a source checkout - the API surface differs
 between versions and there's no compatibility guarantee across them. General
 pattern:
 
-```sh
-mkdir -p full-release-link-build/refs full-release-link-build/src/FullReleaseLink
+The extension's source lives in [`cove-extension/`](../cove-extension/) in this
+repository. The `refs/` directory there is empty on purpose: fill it from your
+own container first.
 
-# Pull the exact DLLs your Cove container is running
+```sh
+# From the repository root. Pull the exact DLLs your Cove container is running.
 for f in Cove.Sdk.dll Cove.Plugins.dll Cove.Core.dll Cove.Data.dll; do
-  docker cp Cove:/opt/cove/$f full-release-link-build/refs/$f
+  docker cp Cove:/opt/cove/$f ./cove-extension/refs/$f
 done
 
 # Build (needs the .NET 10 SDK - a throwaway container is enough)
-docker run --rm -v "$PWD/full-release-link-build:/work" \
+docker run --rm -v "$PWD/cove-extension:/work" \
   -w /work/src/FullReleaseLink mcr.microsoft.com/dotnet/sdk:10.0 \
   bash -c "dotnet build -c Release -o /work/out"
 ```
 
-The extension's own source (`.csproj`, the extension class, `extension.json`,
-and a small `frontend/*.mjs` handler that does the actual `window.open`) isn't
-included in this repository - it's Cove-specific glue code, not part of Full
-Release itself. If you're rebuilding it, the project needs:
+What the project uses, if you want to adapt it:
 
 - `IActionExtension` - registers the toolbar button (`ActionType: "toolbar"`,
   `EntityTypes: ["video"]`, a `HandlerName` so the click resolves to a
@@ -147,16 +146,23 @@ Release itself. If you're rebuilding it, the project needs:
 - A `frontend/*.mjs` file exporting `{ actionHandlers: { open: async (action, payload) => {...} } }`
   that calls that endpoint and does `window.open(url, "_blank")`.
 
+Before you point it at your own setup, check `CoveMediaRoot` in
+`FullReleaseLinkExtension.cs`. It encodes how Cove's mount maps onto Full
+Release's, and the prefix strip both maps and validates the path in one step,
+so it has to match your two `-v` mappings.
+
 ### Deploying it
 
+The target directory name must match the `id` in `extension.json`.
+
 ```sh
-mkdir -p /path/to/cove/config/extensions/com.example.full-release-link/frontend
-cp full-release-link-build/out/FullReleaseLink.dll \
-   full-release-link-build/out/FullReleaseLink.deps.json \
-   /path/to/cove/config/extensions/com.example.full-release-link/
-cp extension.json /path/to/cove/config/extensions/com.example.full-release-link/
-cp frontend/open-in-full-release.mjs \
-   /path/to/cove/config/extensions/com.example.full-release-link/frontend/
+EXT=/path/to/cove/config/extensions/com.christophmh.full-release-link
+mkdir -p "$EXT/frontend"
+
+cp cove-extension/out/FullReleaseLink.dll \
+   cove-extension/out/FullReleaseLink.deps.json "$EXT/"
+cp cove-extension/src/FullReleaseLink/extension.json "$EXT/"
+cp cove-extension/src/FullReleaseLink/frontend/open-in-full-release.mjs "$EXT/frontend/"
 
 docker restart Cove
 ```
@@ -165,7 +171,7 @@ Check the Cove container logs after restart - a clean load looks like:
 
 ```
 [FullReleaseLink] Full Release Link 1.0.0 initialised, target http://<host>:8008.
-[Cove.Plugins.ExtensionManager] Extension com.example.full-release-link (Open in Full Release v1.0.0) initialized
+[Cove.Plugins.ExtensionManager] Extension com.christophmh.full-release-link (Open in Full Release v1.0.0) initialized
 ```
 
 A warning about the endpoint having "no Cove authorization policy" is
@@ -174,9 +180,8 @@ inside the handler (verify with an unauthenticated `curl -X POST` against the
 endpoint - it should come back `401`, not succeed).
 
 The base URL the extension points at is controlled by a `FULL_RELEASE_URL`
-environment variable on the Cove container (defaults to a hardcoded fallback
-in the extension code) - set it if Full Release isn't reachable at the
-default the extension was built with.
+environment variable on the Cove container. The fallback baked into the code
+is a placeholder, so set this one rather than relying on the default.
 
 ### File path mapping
 

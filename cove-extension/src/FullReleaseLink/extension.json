@@ -1,0 +1,15 @@
+{
+  "id": "com.christophmh.full-release-link",
+  "name": "Open in Full Release",
+  "version": "1.0.0",
+  "description": "Adds an 'Open in Full Release' button to the video detail page. Resolves the video's file via Cove's own MaxPath and opens Full Release in a new tab with that file preselected, ready for Inspect. Only files under Full Release's configured media root are reachable. No job runs inside Cove and nothing is queued; this is a pure hand-off to the operator console. Set the target with the FULL_RELEASE_URL environment variable on the Cove container.",
+  "author": "Christoph",
+  "kind": "extension",
+  "entryDll": "FullReleaseLink.dll",
+  "jsBundle": "frontend/open-in-full-release.mjs",
+  "minCoveVersion": "1.3.0",
+  "categories": [
+    "tools",
+    "library"
+  ]
+}
