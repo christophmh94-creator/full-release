@@ -9,13 +9,13 @@
   <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support/>
-  <Project/>
+  <Support>https://github.com/yast2/full-release/issues</Support>
+  <Project>https://github.com/yast2/full-release</Project>
   <Overview>Package a file or folder for upload to a private tracker: pulls metadata from Cove, builds a .torrent, a contact sheet, preview stills, and ready-to-paste BBCode. Web GUI.</Overview>
   <Category>MediaApp:Other Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
-  <TemplateURL/>
-  <Icon>https://raw.githubusercontent.com/christophmh94-creator/full-release/main/branding/full-release_icon_512.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/yast2/full-release/main/unraid-template.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/yast2/full-release/main/branding/full-release_icon_512.png</Icon>
   <ExtraParams/>
   <PostArgs/>
   <CPUset/>
